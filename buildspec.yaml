@@ -60,7 +60,7 @@ cache:
     - '/root/.cache/pip/**/*'
     - '/root/.docker/**/*'
 
-reports:
+# reports:
   # Optional: Configure test reports if you add tests
   # test_report:
   #   files:
