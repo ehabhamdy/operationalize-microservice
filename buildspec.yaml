@@ -1,0 +1,68 @@
+version: 0.2
+
+env:
+  variables:
+    AWS_REGION: "us-east-1"
+    ECR_REPOSITORY_NAME: "coworking-analytics"
+  parameter-store:
+    # Optional: Store sensitive values in AWS Systems Manager Parameter Store
+    # AWS_ACCOUNT_ID: /codebuild/aws-account-id
+  secrets-manager:
+    # Optional: Store sensitive values in AWS Secrets Manager
+    # DOCKER_HUB_TOKEN: dockerhub:token
+
+phases:
+  pre_build:
+    commands:
+      - echo "Logging in to Amazon ECR..."
+      
+      - export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+      - export REPOSITORY_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_NAME
+      - echo "Repository URI:" $REPOSITORY_URI
+      
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $REPOSITORY_URI
+      
+      - export IMAGE_TAG=${CODEBUILD_BUILD_NUMBER:-latest}
+      
+  build:
+    commands:
+      - echo "Building the Docker image..."
+      - docker build -t $REPOSITORY_URI:latest  -t $REPOSITORY_URI:$IMAGE_TAG .
+      
+  post_build:
+    commands:
+      - echo "Pushing Docker images to ECR..."
+      - docker push $REPOSITORY_URI:latest
+      - docker push $REPOSITORY_URI:$IMAGE_TAG
+      
+      - echo "Creating image definitions file..."
+      - printf '[{"name":"coworking-analytics","imageUri":"%s"}]' $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
+      - cat imagedefinitions.json
+      
+      # Update Kubernetes deployment file with new image
+      - echo "Updating Kubernetes deployment manifest..."
+      - |
+        if [ -f deployment/coworking.yaml ]; then
+          sed -i "s|image:.*coworking-analytics.*|image: $REPOSITORY_URI:$IMAGE_TAG|g" deployment/coworking.yaml
+          echo "Updated deployment/coworking.yaml with new image"
+        fi
+      
+      - echo "Build process completed successfully!"
+
+artifacts:
+  files:
+    - imagedefinitions.json
+    - deployment/**/*
+  name: coworking-analytics-$(date +%Y%m%d-%H%M%S)
+
+cache:
+  paths:
+    - '/root/.cache/pip/**/*'
+    - '/root/.docker/**/*'
+
+reports:
+  # Optional: Configure test reports if you add tests
+  # test_report:
+  #   files:
+  #     - 'test-results/**/*'
+  #   file-format: 'JUNITXML'
