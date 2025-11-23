@@ -1,0 +1,53 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: coworking-postgres
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: mydatabase
+    ports:
+      - "5437:5432"
+    volumes:
+      # https://hub.docker.com/_/postgres#initialization-scripts
+      - ./db/1_create_tables.sql:/docker-entrypoint-initdb.d/1_create_tables.sql
+      - ./db/2_seed_users.sql:/docker-entrypoint-initdb.d/2_seed_users.sql
+      - ./db/3_seed_tokens.sql:/docker-entrypoint-initdb.d/3_seed_tokens.sql
+
+      # https://hub.docker.com/_/postgres#pgdata
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U myuser -d mydatabase"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - coworking-network
+
+  analytics:
+    image: coworking-analytics:latest
+    container_name: coworking-analytics
+    environment:
+      DB_USERNAME: myuser
+      DB_PASSWORD: mypassword
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: mydatabase
+      APP_PORT: 5153
+    ports:
+      - "5153:5153"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - coworking-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  coworking-network:
+    driver: bridge
+
