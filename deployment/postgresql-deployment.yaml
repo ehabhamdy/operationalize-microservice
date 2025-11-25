@@ -21,6 +21,8 @@ spec:
           value: myuser
         - name: POSTGRES_PASSWORD
           value: mypassword
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
         ports:
         - containerPort: 5432
         volumeMounts:
