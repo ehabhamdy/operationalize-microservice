@@ -7,13 +7,10 @@ spec:
   selector:
     service: coworking
   ports:
-  - name: "5153"
+  - name: "http"
     protocol: TCP
-    port: 5153
+    port: 80
     targetPort: 5153
-    # nodePort is used to access the service from outside the cluster
-    # Edit the security group of the node instance to allow traffic to that port from the security group of the ELB
-    nodePort: 5153
 ---
 apiVersion: apps/v1
 kind: Deployment
