@@ -11,6 +11,9 @@ spec:
     protocol: TCP
     port: 5153
     targetPort: 5153
+    # nodePort is used to access the service from outside the cluster
+    # Edit the security group of the node instance to allow traffic to that port from the security group of the ELB
+    nodePort: 5153
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -31,7 +34,7 @@ spec:
       containers:
       - name: coworking
         image: <DOCKER_IMAGE_URI_FROM_ECR>
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         livenessProbe:
           httpGet:
             path: /health_check
@@ -46,11 +49,31 @@ spec:
           timeoutSeconds: 5
         envFrom:
         - configMapRef:
-            name: <NAME OF THE ConfigMap>
+            name: coworking-config
         env:
+        - name: DB_USERNAME
+          valueFrom:
+            configMapKeyRef:
+              name: coworking-config
+              key: DB_USER
+        - name: DB_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: coworking-config
+              key: DB_HOST
+        - name: DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: coworking-config
+              key: DB_PORT
+        - name: DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: coworking-config
+              key: DB_NAME
         - name: DB_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: <NAME OF THE Secret>
-              key: <THE KEY FROM Secret WHICH has THE ENCODED PASSWORD>
+              name: coworking-secrets
+              key: db-password
       restartPolicy: Always
