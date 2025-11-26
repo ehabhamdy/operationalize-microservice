@@ -144,6 +144,23 @@ Describe pod for more details:
 ```bash
 kubectl describe pod -l service=coworking
 ```
+If loadbalancer not accessible, check the security group rules and ensure that the eks node security group allows traffic to the loadbalancer security group on the node port.
+
+```bash
+aws ec2 authorize-security-group-ingress --region us-east-1 --group-id <eks-node-security-group-id> --ip-permissions IpProtocol=tcp,FromPort=<node-port>,ToPort=<node-port>,UserIdGroupPairs="[{GroupId=<loadbalancer-security-group-id>,Description='Allow LoadBalancer to NodePort <node-port>'}]"
+```
+
+The Traffic Flow
+
+```
+Internet Request
+    ↓
+LoadBalancer (port 5153)
+    ↓
+Worker Node (nodePort (automatically assigned)) ← Security group blocked this!
+    ↓
+Pod (port 5153)
+```
 
 ## Improvements:
 - In real world, kubernetes deployments are managed with ArgoCd to automate the deployment process.
