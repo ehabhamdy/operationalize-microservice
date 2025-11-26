@@ -1,0 +1,48 @@
+version: 0.2
+
+env:
+  variables:
+    AWS_REGION: "us-east-1"
+    ECR_REPOSITORY_NAME: "coworking-analytics"
+phases:
+  pre_build:
+    commands:
+      - echo "Logging in to Amazon ECR..."
+      
+      - export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+      - export ECR_REGISTRY=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+      - export REPOSITORY_URI=$ECR_REGISTRY/$ECR_REPOSITORY_NAME
+      - echo "Repository URI:" $REPOSITORY_URI
+      
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+      
+      - export IMAGE_TAG=${CODEBUILD_BUILD_NUMBER:-latest}
+      - echo "Image tag:" $IMAGE_TAG
+      
+  build:
+    commands:
+      - echo "Building the Docker image..."
+      - docker build -t $REPOSITORY_URI:latest  -t $REPOSITORY_URI:$IMAGE_TAG .
+      
+  post_build:
+    commands:
+      - echo "Pushing Docker images to ECR..."
+      - docker push $REPOSITORY_URI:latest
+      - docker push $REPOSITORY_URI:$IMAGE_TAG
+      
+      - echo "Creating image definitions file..."
+      - printf '[{"name":"coworking-analytics","imageUri":"%s"}]' $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
+      - cat imagedefinitions.json
+      
+      - echo "Build process completed successfully!"
+
+artifacts:
+  files:
+    - imagedefinitions.json
+    - deployment/**/*
+  name: coworking-analytics-$(date +%Y%m%d-%H%M%S)
+
+cache:
+  paths:
+    - '/root/.cache/pip/**/*'
+    - '/root/.docker/**/*'
