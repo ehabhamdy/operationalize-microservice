@@ -68,15 +68,15 @@ aws eks create-addon --addon-name amazon-cloudwatch-observability --cluster-name
 
 ### 1. Deploy ConfigMap and Secrets
 ```bash
-kubectl apply -f deployment/configmap.yaml
+kubectl apply -f deployments/configmap.yaml
 ```
 
 ### 2. Deploy PostgreSQL Database
 ```bash
-kubectl apply -f deployment/pv.yaml
-kubectl apply -f deployment/pvc.yaml
-kubectl apply -f deployment/postgresql-deployment.yaml
-kubectl apply -f deployment/postgresql-service.yaml
+kubectl apply -f deployments/pv.yaml
+kubectl apply -f deployments/pvc.yaml
+kubectl apply -f deployments/postgresql-deployment.yaml
+kubectl apply -f deployments/postgresql-service.yaml
 ```
 
 Verify PostgreSQL is running:
@@ -94,7 +94,7 @@ bash scripts/init-db.sh
 
 ### 4. Deploy Coworking Application
 ```bash
-kubectl apply -f deployment/coworking.yaml
+kubectl apply -f deployments/coworking.yaml
 ```
 
 ### 5. Verify Deployment
@@ -114,6 +114,13 @@ Wait for the LoadBalancer IP dns name to be assigned, then access the applicatio
 ```
 http://<LOAD-BALANCER-IP-DNS-NAME>/api/health_check
 ```
+## Releasing new version:
+1. Developers push the changes to the main branch
+2. CodeBuild project pickup the changes and trigger a new build.
+3. CodeBuild project builds the Docker image and pushes it to ECR
+4. CodeBuild project updates the Kubernetes deployment manifest with the new image (otherwise, the developer can manually update the manifest with the new image tag)
+5. Developer apply the new manifest to the EKS cluster (ideally with ArgoCd)
+6. New version is deployed and available to the users.
 
 ## Test API Endpoints
 ```bash
